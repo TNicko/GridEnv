@@ -1,0 +1,16 @@
+# Cache directories
+__pycache__/
+.cache/
+
+# Environments
+venv/
+.venv/
+.env
+
+# Other
+**/__init__.py
+.DS_Store
+
+# Local 
+
+
