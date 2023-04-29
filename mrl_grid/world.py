@@ -19,6 +19,7 @@ AGENT_COLORS = [
 ]
 
 class World(object):
+    """World object that contains all entities in the environment"""
     def __init__(self, rows, cols):
         self._agents = []
         self.seen_cells = []

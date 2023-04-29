@@ -1,3 +1,6 @@
+# Description: Individual Rewards functions for the grid world 
+# environment to be summmed together in the environments main reward function.
+
 from mrl_grid.world import Wall
 
 REWARD_MAP = {

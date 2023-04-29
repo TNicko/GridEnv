@@ -273,8 +273,7 @@ class MultiGridEnv(gym.Env):
             self.window = WorldRenderer("Grid world", self.world, fps=self.fps)
             self.window.show() 
 
-        filters = []
-        self.window.render(filters=filters)
+        self.window.render()
 
     def render_image(self, episode):
         """Render the environment as an image at the current step."""

@@ -1,3 +1,5 @@
+# Description: Contains functions for rendering entities in the grid world.
+
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle
 import matplotlib.path as mpath

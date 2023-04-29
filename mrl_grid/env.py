@@ -1,13 +1,16 @@
-import numpy as np
-
 class Env:
+    """
+    Base class for all environment training models to be used only for MultiGridEnv class. 
+    Used to define common methods and attributes.
+    """
     def __init__(self, env, episodes, n_split, render):
         self.env = env
         self.episodes = episodes
         self.n_split = n_split
         self.render = render
 
-    def print_episode(self, n, reward, info, epsilon=None):
+    def print_episode(self, n, reward, info):
+        """Retrieves and prints info for current episode."""
 
         data_string = "Episode: " + str(n).rjust(3) + "\n"
     
@@ -19,8 +22,5 @@ class Env:
                 continue
 
             data_string += " | " + key + ": " + str(value).rjust(4) + "\n"
-
-        if epsilon != None:
-            data_string += " | epsilon: " + str(epsilon).rjust(4)
 
         print(data_string)

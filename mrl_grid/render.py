@@ -35,30 +35,28 @@ class WorldRenderer:
         self.last_seen_cell_index = -1
         self.last_trail_index = -1
 
-    def render_static_elements(self, filters):
+    def render_static_elements(self):
+        """Render static elements of the world."""
         # Render new seen_cells.
-        # if seen_cells is True in filters, render seen_cells
-        if "seen_cells" not in filters:
-            for i, cell in enumerate(self.world.seen_cells[self.last_seen_cell_index + 1:], self.last_seen_cell_index + 1):
-                x, y = cell.pos
-                cell.image.set_xy((y - 0.5, x - 0.5))
-                self.ax.add_patch(cell.image)
-                self.last_seen_cell_index = i
+        for i, cell in enumerate(self.world.seen_cells[self.last_seen_cell_index + 1:], self.last_seen_cell_index + 1):
+            x, y = cell.pos
+            cell.image.set_xy((y - 0.5, x - 0.5))
+            self.ax.add_patch(cell.image)
+            self.last_seen_cell_index = i
 
         # Render new trails.
-        if "trails" not in filters:
-            for i, trail_segment in enumerate(self.world.trails[self.last_trail_index + 1:], self.last_trail_index + 1):
-                self.ax.add_patch(trail_segment.image)
-                self.last_trail_index = i
+        for i, trail_segment in enumerate(self.world.trails[self.last_trail_index + 1:], self.last_trail_index + 1):
+            self.ax.add_patch(trail_segment.image)
+            self.last_trail_index = i
 
         # Save the background (static elements).
         self.background = self.fig.canvas.copy_from_bbox(self.ax.bbox)
 
-    def render(self, filters=[], save_img=False, episode=None):
+    def render(self, save_img=False, episode=None):
         """
         Render the world or update the image being shown.
         """
-        self.render_static_elements(filters)
+        self.render_static_elements()
 
         # Restore the background (static elements).
         self.fig.canvas.restore_region(self.background)
@@ -84,69 +82,22 @@ class WorldRenderer:
         self.fig.canvas.flush_events()
 
         if save_img:
-            self.save_image(episode, filters)
+            self.save_image(episode)
 
         # Pause for a moment to control the frame rate.
         plt.pause(1 / self.fps)
 
-    def save_image(self, episode, filters):
+    def save_image(self, episode):
         image_folder = "images"
         if not os.path.exists(image_folder):
             os.makedirs(image_folder)
 
-        # get world size
-        rows = self.world.rows
-        cols = self.world.cols
-
-        image_type = ""
-        if "seen_cells" in filters:
-            image_type = "_trails"
-        elif "trails" in filters:
-            image_type = "_seen_cells"
-
-        image_name = f"{rows}x{cols}_ep{episode}{image_type}.png"
+        image_name = f"ep{episode}_image.png"
         image_path = os.path.join(image_folder, image_name)
         plt.savefig(image_path)
 
     def render_image(self, episode):
-
-        # Render & save three types of images
-        self.render(filters=["trails"], save_img=True, episode=episode)
-        self.remove_patches()
-        self.add_patches(filters=["seen_cells"])
-        self.render(filters=["seen_cells"], save_img=True, episode=episode)
-        self.remove_patches()
-        self.add_patches(filters=[])
-        self.render(filters=[], save_img=True, episode=episode)
-
-    def remove_patches(self):
-        # Remove seen_cells and trails patches.
-        for cell in self.world.seen_cells:
-            if cell.image in self.ax.collections:
-                cell.image.remove()
-            elif cell.image in self.ax.patches:
-                cell.image.remove()
-
-        for trail_segment in self.world.trails:
-            if trail_segment.image in self.ax.collections:
-                self.ax.collections.remove(trail_segment.image)
-            elif trail_segment.image in self.ax.patches:
-                trail_segment.image.remove()
-
-        # Restore the background (static elements).
-        # self.fig.canvas.restore_region(self.background)
-    
-    def add_patches(self, filters=[]):
-        
-        if "seen_cells" not in filters:
-            # Add the seen_cells to the grid.
-            for cell in self.world.seen_cells:
-                self.ax.add_patch(cell.image)
-
-        if "trails" not in filters:
-            # Add the trails to the grid.
-            for trail_segment in self.world.trails:
-                self.ax.add_patch(trail_segment.image)
+        self.render(save_img=True, episode=episode)
 
     def show(self):
         plt.ion()

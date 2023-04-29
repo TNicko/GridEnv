@@ -1,6 +1,21 @@
 from mrl_grid.env import Env
 
-class NNA(Env):
+class RandomActionRunner(Env):
+    """
+    This class is a subclass of the base environment (Env) and is used for running an environment
+    with random actions. It is specifically designed for visualization and testing purposes to
+    observe how the environment behaves with random actions.
+
+    Attributes:
+        env (gym.Env): The environment to be tested with random actions.
+        episodes (int): The number of episodes to run the environment.
+        n_split (int): The interval at which to print episode information.
+        render (bool): Whether to render the environment or not.
+
+    Methods:
+        run(): Runs the environment for the specified number of episodes.
+        select_actions(): Selects random actions for each agent in the environment.
+    """
     def __init__(self, env, episodes, n_split, render):
         super().__init__(env, episodes, n_split, render)
 
