@@ -2,20 +2,25 @@ import gym.spaces
 import numpy as np
 from mrl_grid.render import WorldRenderer
 from mrl_grid.world import World, Wall, Agent
+from mrl_grid.reward_functions import (get_illegal_move_reward, get_collision_reward, get_new_cell_reward,
+                              get_seen_cell_reward, get_movement_cost, get_wait_cost,
+                              get_exploration_reward, get_revisit_penalty, get_adjacent_seen_cell_reward)
 
-FPS = 1
+FPS = 20 # frames per second for rendered environment
 
-REWARD_MAP = {
-    'illegal': -0.5,
-    'new': 1,
-    'move': -0.05,
-    'wait': -0.1,
-    'collision': -20,
-    'goal': 100,
-}
-
-class GridEnv(gym.Env):
+class MultiGridEnv(gym.Env):
+    """A multi-agent environment class for gridworld navigation task with partial observability."""
     def __init__(self, grid_map: list[list[int]], n_channels: int, view_radius: int, traversal_limit_factor: float = None):
+        """
+        Parameters:
+            grid_map (list[list[int]]): a list of lists containing integers that represent the grid world. The integers
+                                        represent different objects on the grid: 0 for empty cells, 1 for agent cells, and 
+                                        2 for wall cells.
+            n_channels (int): the number of channels in the observation space.
+            view_radius (int): the radius of the agent's observation area.
+            traversal_limit_factor (float): a factor that determines the maximum number of cells an agent can visit before
+                                            the episode terminates. If None, there is no traversal limit.
+        """
 
         self.test_mode = False # Check if test mode is on
             
@@ -49,6 +54,7 @@ class GridEnv(gym.Env):
         self.fps = FPS
 
     def _initialise_world(self):
+        """Initialize the world object based on the grid map."""
         world = World(self.rows, self.cols)
 
         num_agents = 0
@@ -79,7 +85,7 @@ class GridEnv(gym.Env):
         return world
     
     def _get_obs(self, agent):
-        # Get the agent's current position
+        """Get the observation/state for a given agent."""
         x, y = agent.pos
 
         # Initialize the observation array with the agent's view size
@@ -121,22 +127,27 @@ class GridEnv(gym.Env):
         return obs
     
     def action_conversion(self, action_n):
+        """Convert the list of actions for each agent into a single list."""
         action = []
         for i in range(self.n_agents):
             action.append(action_n[i])
         return action
 
     def get_centralized_state(self, state):
+        """Convert the list of observations for each agent into a centralized state."""
         return np.concatenate(state, axis=1)
     
     def get_centralized_reward(self, reward_n):
+        """Calculate the total reward for all agents in the cooperative setting."""
         return np.sum(reward_n)
     
     def reward_conversion(self, reward):
+        """Convert a single reward into a list of rewards for each agent."""
         reward_n = [reward] * self.n_agents
         return reward_n
             
     def step(self, action_n):
+        """Take a step in the environment."""
         assert len(action_n) == len(self.world.agents)
         action = self.action_conversion(action_n)
         done = False
@@ -168,114 +179,56 @@ class GridEnv(gym.Env):
         state = np.stack(state_n, axis=0)
         info = self._get_info()
         return state, reward, done, info
-    
-    def _count_local_unexplored_cells(self, pos):
-        x, y = pos
-        unexplored_count = 0
-
-        for i in range(-self.view_radius, self.view_radius + 1):
-            for j in range(-self.view_radius, self.view_radius + 1):
-                world_x, world_y = x + i, y + j
-                if not self.world.is_cell_visited((world_x, world_y)):
-                    unexplored_count += 1
-
-        return unexplored_count
-    
-    def _adjacent_seen_cell(self, pos, old_pos):
-        x, y = pos
-        adjacent_cells = [
-            (x-1, y),
-            (x+1, y),
-            (x, y-1),
-            (x, y+1)
-        ]
-
-        # Remove old agent pos from list
-        adjacent_cells = [cell for cell in adjacent_cells if cell != old_pos]
-
-        for cell_pos in adjacent_cells:
-            cell = self.world.get_cell(cell_pos)
-            if self.world.is_cell_visited(cell_pos) or isinstance(cell, Wall):
-                return True
-        return False
 
     def _get_reward(self, agent, new_pos, done):
-        x, y = new_pos
         reward = 0
         updated_pos = new_pos
 
-        # Illegal move outside of grid boundary
-        if not (0 <= x < self.world.cols and 0 <= y < self.world.rows):
-            reward += REWARD_MAP['illegal']
+        # Check for illegal moves (outside the grid boundary)
+        illegal_reward, illegal_move = get_illegal_move_reward(new_pos, self.world.cols, self.world.rows)
+        if illegal_move:
+            reward += illegal_reward
             updated_pos = agent.pos
         else:
-            # Check if the new position is occupied by another agent or an obstacle
-            other_agent = self.world.check_agent(new_pos)
-            if other_agent:
-                agent.collided = True
-                other_agent.collided = True
-                reward += REWARD_MAP['collision']
+            # Check for collisions with other agents or walls
+            collision_reward, collision_occurred, done = get_collision_reward(agent, new_pos, done, self.world, self.test_mode)
+            if collision_occurred:
+                reward += collision_reward
                 updated_pos = agent.pos
-                if not self.test_mode:
-                    done = True
-            elif self.world.check_wall(new_pos):
-                agent.collided = True
-                reward += REWARD_MAP['collision']
-                updated_pos = agent.pos
-                if not self.test_mode:
-                    done = True
             else:
-                # moved to new grid cell
-                if not self.world.is_cell_visited(new_pos):
-                    reward += REWARD_MAP['new']
-                    self.world.cell_visited(new_pos, agent)
-                    self.visited_counter = 0
+                # Check for moving to a new cell and update the visited state
+                new_cell_reward, done, self.visited_counter, self.goal_reward_assigned = get_new_cell_reward(agent, new_pos, done, self.world, self.visited_counter, self.goal_reward_assigned)
+                reward += new_cell_reward
 
-                    # All of the grid explored
-                    if self.world.all_cells_visited():
-                        if not self.goal_reward_assigned:  # Check if the goal reward is already assigned
-                            reward += REWARD_MAP['goal']
-                            self.goal_reward_assigned = True  # Mark the goal reward as assigned
-                        done = True
+                # Check for moving to a previously seen cell
+                seen_cell_reward, self.visited_counter = get_seen_cell_reward(agent, new_pos, self.world, self.visited_counter)
+                if self.world.is_cell_visited(new_pos):
+                    # Update 2: Penalize revisiting a cell
+                    # revisit_penalty = get_revisit_penalty(new_pos)
+                    # seen_cell_reward += revisit_penalty
+                    pass
+                reward += seen_cell_reward
 
-                    # --- UPDATE 1 --- #
+                # Calculate movement cost
+                movement_cost = get_movement_cost(agent, new_pos)
+                reward += movement_cost
 
-                    # Calculate the number of unexplored cells around the current position and the new position
-                    # current_unexplored_count = self._count_local_unexplored_cells(agent.pos)
-                    # new_unexplored_count = self._count_local_unexplored_cells(new_pos)
-                    
-                    # # Encourage the agent to move towards areas with more unexplored cells
-                    # if new_unexplored_count > current_unexplored_count:
-                    #     reward += 0.5
-                    # elif new_unexplored_count < current_unexplored_count:
-                    #     reward -= 0.5
+                # Calculate wait cost (if agent remains in the same position)
+                wait_cost = get_wait_cost(agent, new_pos)
+                reward += wait_cost
 
-                    # --- UPDATE 3 --- #
-                    # Reward for moving to an empty cell next to a seen cell, wall, or boundary 
-                    if self._adjacent_seen_cell(new_pos, agent.pos):
-                        reward += 1 
+                # Update 1: Encourage the agent to move towards areas with more unexplored cells
+                # exploration_reward = get_exploration_reward(agent, new_pos, self.world, self.view_radius)
+                # reward += exploration_reward
 
-                # moved to seen grid cell
-                else:
-                    self.visited_counter += 1
+                # Update 3: Reward for moving to an empty cell next to a seen cell, wall, or boundary
+                adjacent_cell_reward = get_adjacent_seen_cell_reward(agent, new_pos, self.world)
+                reward += adjacent_cell_reward
 
-                    # --- UPDATE 2 --- #
-                    # seen_cell = self.world.get_cell(new_pos)
-                    # seen_cell.seen_counter += 1
-                    # reward -= 0.5 * seen_cell.seen_counter
-
-                # movement cost
-                if new_pos != agent.pos:
-                    reward += REWARD_MAP['move']
-
-                # wait cost
-                if new_pos == agent.pos:
-                    reward += REWARD_MAP['wait']
-            
-        
         return reward, updated_pos, done
     
     def _get_info(self):
+        """Return the information about the environment."""
         overall_coverage, individual_coverage = self.world.get_coverage()
         steps_taken = self.world.get_steps_taken()
 
@@ -315,6 +268,7 @@ class GridEnv(gym.Env):
             self.render_image(episode)
 
     def render_gui(self):
+        """Render the environment in a GUI window."""
         if self.window == None:
             self.window = WorldRenderer("Grid world", self.world, fps=self.fps)
             self.window.show() 
@@ -323,6 +277,7 @@ class GridEnv(gym.Env):
         self.window.render(filters=filters)
 
     def render_image(self, episode):
+        """Render the environment as an image at the current step."""
         if self.window == None:
             self.window = WorldRenderer("Grid world", self.world, fps=self.fps)
         self.window.render_image(episode)

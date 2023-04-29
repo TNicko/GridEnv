@@ -1,5 +1,4 @@
 from mrl_grid.env import Env
-import numpy as np
 
 class NNA(Env):
     def __init__(self, env, episodes, n_split, render):
