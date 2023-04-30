@@ -61,13 +61,17 @@ def get_wait_cost(agent, new_pos):
 
 def get_exploration_reward(agent, new_pos, world, view_radius):
     """Returns reward for moving to location that has more unexplored cells in the local area"""
+
+    # Check if the cell has been visited
+    if world.is_cell_visited(new_pos):
+        return 0
+    
     current_unexplored_count = count_local_unexplored_cells(agent.pos, world, view_radius)
     new_unexplored_count = count_local_unexplored_cells(new_pos, world, view_radius)
 
     if new_unexplored_count > current_unexplored_count:
-        return 0.5
-    elif new_unexplored_count < current_unexplored_count:
-        return -0.5
+        return 1
+    
     return 0
 
 def get_revisit_penalty(new_pos, world):
@@ -78,6 +82,11 @@ def get_revisit_penalty(new_pos, world):
 
 def get_adjacent_seen_cell_reward(agent, new_pos, world):
     """Returns reward for moving to a new cell that is adjacent to a wall, boundary or a visited cell"""
+
+    # Check if the cell has been visited
+    if world.is_cell_visited(new_pos):
+        return 0
+    
     x, y = new_pos
     adjacent_cells = [
         (x-1, y),
@@ -89,6 +98,7 @@ def get_adjacent_seen_cell_reward(agent, new_pos, world):
     # Remove old agent pos from list
     adjacent_cells = [cell for cell in adjacent_cells if cell != agent.pos]
 
+    # Check if any adjacent cells are walls or visited cells
     for cell_pos in adjacent_cells:
         cell = world.get_cell(cell_pos)
         if world.is_cell_visited(cell_pos) or isinstance(cell, Wall):
@@ -112,4 +122,3 @@ def count_local_unexplored_cells(pos, world, view_radius):
                 unexplored_count += 1
 
     return unexplored_count
-    
