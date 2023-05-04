@@ -2,6 +2,8 @@
 
 `MultiGridEnv` is a custom gym environment designed for multi-agent gridworld navigation tasks with partial observability. In this environment, multiple agents can navigate through a gridworld to explore and cover as many cells as possible while avoiding collisions with each other and walls.
 
+![Alt Text](https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExMjBiZDMzMDI1NjU4ZDk2M2IyZDkzMzRkYTM1ODc2MTAwZDU2MjMyMCZlcD12MV9pbnRlcm5hbF9naWZzX2dpZklkJmN0PWc/et3ByoDiNEFXLdoFOU/giphy.gif)
+
 ## Documentation
 
 ### Initializing environment
