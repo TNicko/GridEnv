@@ -16,7 +16,6 @@ class MultiGridEnv(gym.Env):
             grid_map (list[list[int]]): a list of lists containing integers that represent the grid world. The integers
                                         represent different objects on the grid: 0 for empty cells, 1 for agent cells, and 
                                         2 for wall cells.
-            n_channels (int): the number of channels in the observation space.
             view_radius (int): the radius of the agent's observation area.
             traversal_limit_factor (float): a factor that determines the maximum number of cells an agent can visit before
                                             the episode terminates. If None, there is no traversal limit.
