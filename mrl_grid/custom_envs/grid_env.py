@@ -10,7 +10,7 @@ FPS = 20 # frames per second for rendered environment
 
 class MultiGridEnv(gym.Env):
     """A multi-agent environment class for gridworld navigation task with partial observability."""
-    def __init__(self, grid_map: list[list[int]], n_channels: int, view_radius: int, traversal_limit_factor: float = None):
+    def __init__(self, grid_map: list[list[int]], view_radius: int, traversal_limit_factor: float = None):
         """
         Parameters:
             grid_map (list[list[int]]): a list of lists containing integers that represent the grid world. The integers
@@ -27,7 +27,7 @@ class MultiGridEnv(gym.Env):
         self.grid_map = np.asarray(grid_map)
         self.cols, self.rows = self.grid_map.shape
         self.grid_size = self.cols * self.rows
-        self.channels = n_channels
+        self.channels = 4
 
         self.view_radius = view_radius
         self.traversal_limit_factor = traversal_limit_factor
